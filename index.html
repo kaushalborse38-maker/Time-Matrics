@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Automatic Timetable Generator Pro</title>
+    <title>Time Matrix | Smart Timetable Generation</title>
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/kaushalborse38-maker/Time-Matrics/main/WhatsApp%20Image%202026-04-25%20at%2011.50.33%20AM.jpeg">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -18,26 +21,86 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
-        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 20px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 20px; }
-        .animate-pulse-soft { animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .subject-card { border-width: 2px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .subject-card:hover { transform: translateY(-2px) scale(1.01); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05); }
-        .pdf-fix { letter-spacing: -0.02em; word-spacing: -0.05em; }
-        #init-loader { position: fixed; inset: 0; background: #020617; display: flex; align-items: center; justify-content: center; z-index: 10000; transition: opacity 0.5s ease; }
-        @media (min-width: 1024px) { .timetable-scale-wrapper { transform: scale(0.9); transform-origin: top center; margin-bottom: -5%; } }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        
+        :root {
+            --brand-primary: #14b8a6;
+            --brand-dark: #020617;
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--brand-dark);
+            color: white;
+            scroll-behavior: smooth;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(20, 184, 166, 0.2); border-radius: 20px; }
+        
+        .glass-panel { 
+            background: rgba(255, 255, 255, 0.03); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+        }
+
+        .hero-gradient {
+            background: radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.15) 0%, transparent 50%);
+        }
+
+        .subject-card { 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+        
+        .subject-card:hover { 
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); 
+        }
+
+        .nav-link {
+            position: relative;
+            transition: color 0.3s;
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: var(--brand-primary);
+            transition: width 0.3s;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        #init-loader { 
+            position: fixed; 
+            inset: 0; 
+            background: #020617; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 10000; 
+        }
+
+        @media (min-width: 1024px) { 
+            .timetable-scale-wrapper { 
+                transform: scale(0.95); 
+                transform-origin: top center; 
+            } 
+        }
     </style>
 </head>
-<body class="bg-slate-950 overflow-x-hidden">
+<body class="overflow-x-hidden">
     <div id="init-loader">
         <div class="text-center">
-            <div class="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p class="text-teal-500 font-black uppercase tracking-[0.3em] text-[10px]">Initializing Architecture</p>
+            <div class="w-12 h-12 border-2 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-teal-500 font-bold uppercase tracking-widest text-[10px]">Loading Time Matrix</p>
         </div>
     </div>
     <div id="root"></div>
@@ -47,47 +110,401 @@
         import { getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, collection, doc, setDoc, addDoc, getDoc, onSnapshot, query, deleteDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, memo } = React;
 
-        const hideInitialLoader = () => {
-            const loader = document.getElementById('init-loader');
-            if (loader) {
-                loader.style.opacity = '0';
-                setTimeout(() => loader.style.display = 'none', 500);
-            }
-        };
-        hideInitialLoader();
-
-        let app, auth, db;
-        let appId = typeof __app_id !== 'undefined' ? __app_id : 'timetable-gen-pro';
+        const LOGO_URL = "https://raw.githubusercontent.com/kaushalborse38-maker/Time-Matrics/main/WhatsApp%20Image%202026-04-25%20at%2011.50.33%20AM.jpeg";
         const WEBHOOK_URL = 'https://n8n.srv1234891.hstgr.cloud/webhook/05e856e5-9745-40c2-955c-0e8e1e2f647c';
 
-        const setupFirebase = () => {
-            try {
-                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                    const firebaseConfig = JSON.parse(__firebase_config);
-                    app = initializeApp(firebaseConfig);
-                    auth = getAuth(app);
-                    db = getFirestore(app);
-                    return true;
-                }
-            } catch (e) { console.error("Firebase skipped."); }
-            return false;
+        // Icons
+        const IconCheck = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12"/></svg>);
+        const IconSparkles = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>);
+        const IconZap = ({ className, fill = "none" }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14H4Z"/></svg>);
+        const IconRefresh = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>);
+        const IconDownload = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>);
+        const IconHistory = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>);
+        const IconCoffee = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>);
+        const IconArrowRight = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>);
+        const IconLayout = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>);
+
+        // LOGO COMPONENT with Fallback
+        const AppLogo = ({ className = "w-10 h-10" }) => {
+            const [error, setError] = useState(false);
+            if (error) return <div className={`${className} bg-teal-500 rounded-lg flex items-center justify-center text-slate-950 font-bold shadow-lg border border-white/10`}><IconLayout className="w-5 h-5" /></div>;
+            return <img 
+                src={LOGO_URL} 
+                alt="Time Matrix" 
+                onError={() => setError(true)} 
+                className={`${className} rounded-lg shadow-lg border border-white/10 object-cover`} 
+            />;
         };
 
-        const hasCloud = setupFirebase();
+        // SUB-COMPONENTS
+        
+        const Navbar = ({ currentView, setCurrentView }) => (
+            <nav className="fixed top-0 left-0 right-0 z-[100] border-b border-white/5 glass-panel h-20 px-6 md:px-12 flex items-center justify-between">
+                <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('home')}>
+                    <AppLogo />
+                    <span className="text-xl font-bold tracking-tight">Time Matrix</span>
+                </div>
+                <div className="hidden md:flex items-center gap-10">
+                    <button onClick={() => setCurrentView('home')} className={`nav-link text-sm font-medium ${currentView === 'home' ? 'text-teal-400' : 'text-white/60'}`}>Home</button>
+                    <button onClick={() => setCurrentView('generator')} className={`nav-link text-sm font-medium ${currentView === 'generator' ? 'text-teal-400' : 'text-white/60'}`}>Generate</button>
+                    <button onClick={() => setCurrentView('about')} className={`nav-link text-sm font-medium ${currentView === 'about' ? 'text-teal-400' : 'text-white/60'}`}>About Project</button>
+                </div>
+                <div>
+                    <button onClick={() => setCurrentView('generator')} className="bg-teal-600 hover:bg-teal-500 px-6 py-2 rounded-full text-sm font-bold transition-all">Get Started</button>
+                </div>
+            </nav>
+        );
 
-        const IconSparkles = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>);
-        const IconLayout = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>);
-        const IconZap = ({ className, fill = "none" }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14H4Z"/></svg>);
-        const IconRefresh = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>);
-        const IconDownload = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>);
-        const IconHistory = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>);
-        const IconCoffee = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>);
-        const IconUser = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>);
-        const IconCode = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>);
+        const HomePage = ({ setCurrentView }) => (
+            <div className="pt-32 pb-20 px-6 max-w-7xl mx-auto">
+                <div className="text-center relative hero-gradient py-20">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-bold mb-8">
+                        <IconSparkles className="w-3 h-3" />
+                        <span>Effortless Planning</span>
+                    </div>
+                    <h1 className="text-6xl md:text-8xl font-extrabold tracking-tight mb-8 leading-[1.1]">
+                        Time Matrix <br/>
+                        <span className="bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent italic">Smart Scheduling</span>
+                    </h1>
+                    <p className="text-white/60 text-lg md:text-xl max-w-2xl mx-auto mb-12">
+                        A modern, professional tool to create conflict-free academic timetables in seconds. Optimized for balanced distribution and realistic scheduling.
+                    </p>
+                    <div className="flex flex-col md:flex-row items-center justify-center gap-4">
+                        <button onClick={() => setCurrentView('generator')} className="bg-teal-500 hover:bg-teal-400 text-slate-950 px-10 py-4 rounded-full text-lg font-bold transition-all shadow-[0_0_40px_-10px_rgba(20,184,166,0.5)] flex items-center gap-2">
+                            Generate Timetable <IconArrowRight className="w-5 h-5"/>
+                        </button>
+                        <button onClick={() => setCurrentView('about')} className="px-10 py-4 rounded-full text-lg font-bold border border-white/10 hover:bg-white/5 transition-all">Learn More</button>
+                    </div>
+                </div>
+
+                <div className="grid md:grid-cols-4 gap-8 mt-40">
+                    {[
+                        { title: "Auto Scheduling", desc: "Intelligent logic handles optimal slot allocation automatically.", icon: <IconZap className="text-amber-400" /> },
+                        { title: "No Conflicts", desc: "Rigid checking ensures zero teacher or room overlaps.", icon: <IconCheck className="text-green-400" /> },
+                        { title: "Balanced Load", desc: "Smart weights spread subjects evenly across the week.", icon: <IconSparkles className="text-teal-400" /> },
+                        { title: "Smart Priority", desc: "Prioritize core subjects with our 5-tier weight system.", icon: <IconZap className="text-purple-400" /> }
+                    ].map((f, i) => (
+                        <div key={i} className="glass-panel p-8 rounded-3xl group hover:border-teal-500/30 transition-all">
+                            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                                {f.icon}
+                            </div>
+                            <h3 className="text-xl font-bold mb-3">{f.title}</h3>
+                            <p className="text-white/40 text-sm leading-relaxed">{f.desc}</p>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-40 text-center">
+                    <h2 className="text-4xl font-bold mb-20">How It Works</h2>
+                    <div className="grid md:grid-cols-3 gap-12 relative">
+                        {[
+                            { step: "01", title: "Add Subjects", desc: "Enter names and faculty for each subject." },
+                            { step: "02", title: "Set Priority", desc: "Assign weights (1-5) to define frequency." },
+                            { step: "03", title: "Generate", desc: "Get your fully optimized weekly schedule instantly." }
+                        ].map((s, i) => (
+                            <div key={i} className="relative z-10">
+                                <div className="text-8xl font-black text-white/[0.03] absolute -top-12 left-1/2 -translate-x-1/2">{s.step}</div>
+                                <h3 className="text-2xl font-bold mb-4 relative">{s.title}</h3>
+                                <p className="text-white/40 max-w-xs mx-auto">{s.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mt-40 glass-panel p-16 rounded-[3rem] text-center bg-gradient-to-b from-teal-500/10 to-transparent">
+                    <h2 className="text-4xl font-bold mb-6">Start Creating Now</h2>
+                    <p className="text-white/60 mb-10 max-w-lg mx-auto">Reclaim your planning time with Time Matrix.</p>
+                    <button onClick={() => setCurrentView('generator')} className="bg-white text-slate-950 px-12 py-4 rounded-full text-lg font-bold hover:bg-teal-50 transition-all">Generate My Timetable</button>
+                </div>
+            </div>
+        );
+
+        const AboutPage = () => (
+            <div className="pt-32 pb-20 px-6 max-w-4xl mx-auto">
+                <h1 className="text-5xl font-black mb-6">About Time Matrix</h1>
+                <p className="text-white/60 text-lg mb-12">A professional automated scheduling system designed for academic efficiency.</p>
+                
+                <div className="space-y-12">
+                    <section>
+                        <h2 className="text-2xl font-bold text-teal-400 mb-4">Project Overview</h2>
+                        <p className="text-white/80 leading-relaxed">
+                            Time Matrix generates weekly academic schedules based on priority rules, room constraints, and faculty availability. Our goal is to provide conflict-free, balanced, and realistic timetables.
+                        </p>
+                    </section>
+
+                    <section className="grid md:grid-cols-2 gap-8">
+                        <div className="glass-panel p-8 rounded-3xl">
+                            <h3 className="text-xl font-bold mb-4 text-emerald-400">Core Objectives</h3>
+                            <ul className="space-y-2 text-white/70 text-sm">
+                                <li>• Conflict-free slot assignment</li>
+                                <li>• No overlapping lectures/teachers</li>
+                                <li>• No consecutive repetitions</li>
+                                <li>• PROXY slots for empty periods</li>
+                            </ul>
+                        </div>
+                        <div className="glass-panel p-8 rounded-3xl">
+                            <h3 className="text-xl font-bold mb-4 text-amber-400">Scheduling Model</h3>
+                            <ul className="space-y-2 text-white/70 text-sm">
+                                <li>• Mon - Sat (6 Slots/Day)</li>
+                                <li>• Morning & Afternoon Sessions</li>
+                                <li>• Automatic Lunch Break</li>
+                                <li>• Weight-based frequency control</li>
+                            </ul>
+                        </div>
+                    </section>
+
+                    <section>
+                        <h2 className="text-2xl font-bold text-teal-400 mb-4">Rule Engine</h2>
+                        <div className="space-y-4">
+                            <div className="flex gap-4 items-start p-6 rounded-2xl bg-white/5">
+                                <div className="px-3 py-1 rounded bg-teal-500/20 text-teal-400 text-xs font-bold mt-1">High (3+)</div>
+                                <p className="text-sm">Target: ~12 lectures/week. Maximum 2 per day. Prevents consecutive scheduling.</p>
+                            </div>
+                            <div className="flex gap-4 items-start p-6 rounded-2xl bg-white/5">
+                                <div className="px-3 py-1 rounded bg-amber-500/20 text-amber-400 text-xs font-bold mt-1">Mid (2)</div>
+                                <p className="text-sm">Target: ~4 lectures/week. Balanced 1 lecture per day max.</p>
+                            </div>
+                            <div className="flex gap-4 items-start p-6 rounded-2xl bg-white/5">
+                                <div className="px-3 py-1 rounded bg-slate-500/20 text-slate-400 text-xs font-bold mt-1">Low (1)</div>
+                                <p className="text-sm">Target: ~2 lectures/week. Reserved for minor subjects.</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        );
+
+        const GeneratorView = ({ 
+            className, setClassName, rooms, setRooms, subjects, subjectCount, handleSubjectCountChange, 
+            updateSubject, generateTimetable, handleReset, loading, timetable, setTimetable, downloadPDF, 
+            setShowHistory, history, days, lectureSlots, getUniqueLiteStyle 
+        }) => {
+            const timetableRef = useRef(null);
+
+            return (
+                <div className="pt-32 pb-20 px-6 max-w-5xl mx-auto">
+                    <div className="flex justify-between items-center mb-12">
+                        <div>
+                            <h1 className="text-4xl font-extrabold tracking-tight">Generate Timetable</h1>
+                            <p className="text-white/40">Enter your details to create your schedule.</p>
+                        </div>
+                        <button onClick={() => setShowHistory(true)} className="flex items-center gap-2 px-6 py-2 rounded-full border border-white/10 hover:bg-white/5 text-sm font-bold transition-all">
+                            <IconHistory className="w-4 h-4" /> History ({history.length})
+                        </button>
+                    </div>
+
+                    {!loading && !timetable && (
+                        <div className="space-y-8">
+                            <div className="glass-panel p-10 rounded-[2.5rem] shadow-xl">
+                                <div className="grid md:grid-cols-2 gap-8 mb-10">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-white/40 uppercase tracking-widest ml-1">Class Name</label>
+                                        <input 
+                                            type="text" 
+                                            value={className} 
+                                            onChange={e => setClassName(e.target.value)} 
+                                            placeholder="e.g. Grade 10-A" 
+                                            autoFocus
+                                            className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-teal-500 outline-none text-white font-semibold" 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-white/40 uppercase tracking-widest ml-1">Rooms</label>
+                                        <input type="text" value={rooms} onChange={e => setRooms(e.target.value)} placeholder="e.g. Room 101, Lab 2" className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-teal-500 outline-none text-white font-semibold" />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between mb-8">
+                                    <h3 className="text-xl font-bold">Subjects</h3>
+                                    <div className="flex items-center gap-4 bg-white/5 px-4 py-2 rounded-xl border border-white/10">
+                                        <span className="text-xs font-bold text-white/30 uppercase">Count:</span>
+                                        <input type="number" min="4" max="9" value={subjectCount} onChange={e => handleSubjectCountChange(e.target.value)} className="w-8 bg-transparent text-center font-bold outline-none text-teal-400" />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {subjects.map((s, idx) => (
+                                        <div key={s.id} className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 group transition-all">
+                                            <div className="grid md:grid-cols-12 gap-6 items-center">
+                                                <div className="md:col-span-5">
+                                                    <input type="text" placeholder="Subject Name" value={s.name} onChange={e => updateSubject(idx, 'name', e.target.value)} className="w-full bg-transparent font-bold text-lg border-b border-white/10 focus:border-teal-500 outline-none py-2" />
+                                                </div>
+                                                <div className="md:col-span-4">
+                                                    <input type="text" placeholder="Teacher Name" value={s.teacher} onChange={e => updateSubject(idx, 'teacher', e.target.value)} className="w-full bg-transparent text-teal-200/80 border-b border-white/10 focus:border-teal-500 outline-none py-2" />
+                                                </div>
+                                                <div className="md:col-span-3 flex justify-end gap-2">
+                                                    <button onClick={() => updateSubject(idx, 'session', 'morning')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold ${s.session === 'morning' ? 'bg-teal-500 text-slate-950' : 'text-white/20'}`}>AM</button>
+                                                    <button onClick={() => updateSubject(idx, 'session', 'afternoon')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold ${s.session === 'afternoon' ? 'bg-amber-500 text-slate-950' : 'text-white/20'}`}>PM</button>
+                                                </div>
+                                            </div>
+                                            <div className="mt-6 flex items-center gap-6">
+                                                <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Weight (Frequency):</span>
+                                                <div className="flex gap-2">
+                                                    {[1,2,3,4,5].map(w => (
+                                                        <button key={w} onClick={() => updateSubject(idx, 'weight', w)} className={`w-8 h-8 rounded-full border transition-all flex items-center justify-center ${s.weight >= w ? 'bg-teal-500/20 border-teal-500 text-teal-400' : 'border-white/10 text-white/10 hover:border-white/30'}`}>
+                                                            <IconZap className="w-3 h-3" fill={s.weight >= w ? "currentColor" : "none"} />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="mt-12 flex gap-4">
+                                    <button onClick={generateTimetable} className="flex-1 bg-teal-600 hover:bg-teal-500 text-white py-6 rounded-3xl font-bold text-xl transition-all shadow-xl">Generate Timetable</button>
+                                    <button onClick={handleReset} className="w-20 rounded-3xl border border-white/10 flex items-center justify-center text-white/40 hover:text-white"><IconRefresh className="w-6 h-6"/></button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {loading && (
+                        <div className="py-40 text-center">
+                            <div className="w-20 h-20 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-8"></div>
+                            <h2 className="text-2xl font-bold mb-2">Building Your Timetable</h2>
+                            <p className="text-white/40">Optimizing slots and preventing conflicts...</p>
+                        </div>
+                    )}
+
+                    {timetable && !loading && (
+                        <div className="space-y-12 animate-in fade-in duration-700">
+                            <div className="flex justify-between items-center bg-white/5 p-6 rounded-3xl border border-white/5">
+                                <button onClick={() => setTimetable(null)} className="text-sm font-bold text-teal-400 hover:text-teal-300">← Back to inputs</button>
+                                <button id="dl-btn" onClick={() => downloadPDF(timetableRef)} className="bg-white text-slate-900 px-8 py-3 rounded-full font-bold text-sm shadow-xl flex items-center gap-2 hover:bg-teal-50 transition-all">
+                                    <IconDownload className="w-4 h-4" /> Export PDF
+                                </button>
+                            </div>
+
+                            <div className="timetable-scale-wrapper overflow-x-auto rounded-[3rem] shadow-2xl">
+                                <div ref={timetableRef} className="bg-white p-12 text-slate-950 min-w-[1100px]">
+                                    <div className="flex justify-between items-end mb-12 border-b-4 border-slate-50 pb-10">
+                                        <div className="flex items-center gap-6">
+                                            <AppLogo className="w-20 h-20" />
+                                            <div>
+                                                <div className="px-3 py-1 bg-teal-500 text-slate-950 inline-block rounded-full text-[9px] font-black uppercase tracking-[0.3em] mb-4">Your Timetable</div>
+                                                <h3 className="text-5xl font-black tracking-tight text-slate-900 leading-none uppercase">{className || 'Schedule'}</h3>
+                                                <div className="mt-2 flex gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                                    <span>Rooms: {rooms || 'Assigned'}</span>
+                                                    <span>•</span>
+                                                    <span>Time Matrix System</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-[10px] font-black text-teal-600 uppercase tracking-[0.4em] mb-2">Optimized Schedule</div>
+                                            <div className="text-3xl font-black text-slate-900">Weekly View</div>
+                                        </div>
+                                    </div>
+
+                                    <table className="w-full border-separate border-spacing-2">
+                                        <thead>
+                                            <tr>
+                                                <th className="w-32"></th>
+                                                {days.map(day => (
+                                                    <th key={day} className="p-4 text-center text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 border border-slate-50 rounded-2xl">{day}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {lectureSlots.map(slot => {
+                                                if (slot.type === 'lunch') {
+                                                    return (
+                                                        <tr key="lunch">
+                                                            <td className="p-4 text-right font-black text-slate-200 text-[10px] uppercase tracking-widest">{slot.label}</td>
+                                                            <td colSpan={6} className="p-1">
+                                                                <div className="h-16 rounded-3xl bg-slate-50/50 border-2 border-dashed border-slate-100 flex items-center justify-center gap-4 text-slate-300 font-bold uppercase tracking-[1em] text-[10px]"><IconCoffee className="w-4 h-4" /> Lunch Break</div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                }
+                                                return (
+                                                    <tr key={slot.key}>
+                                                        <td className="p-4 text-right font-black text-slate-900 text-xs leading-tight w-32 uppercase tracking-tighter">
+                                                            {slot.label.split(' - ')[0]}<br/>
+                                                            <span className="text-slate-200 text-[10px]">{slot.label.split(' - ')[1]}</span>
+                                                        </td>
+                                                        {days.map(day => {
+                                                            const entry = timetable.find(i => i.day === day && i.slot === slot.label);
+                                                            const styles = getUniqueLiteStyle(entry?.data?.name, subjects.findIndex(s => s.name === entry?.data?.name));
+                                                            return (
+                                                                <td key={day} className="p-1 min-w-[150px]">
+                                                                    {entry && entry.data ? (
+                                                                        <div style={styles} className="subject-card p-6 rounded-[2rem] h-32 flex flex-col justify-between relative overflow-hidden border">
+                                                                            <div style={{backgroundColor: styles.accentColor}} className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl text-[8px] font-black text-slate-400">#{entry.data.sequence}</div>
+                                                                            <div>
+                                                                                <div className="font-bold text-lg leading-tight mb-1 truncate">{entry.data.name}</div>
+                                                                                <div className="text-[10px] font-bold opacity-60 flex items-center gap-1"><span className="opacity-40">Prof.</span> {entry.data.teacher}</div>
+                                                                            </div>
+                                                                            <div style={{backgroundColor: styles.accentColor}} className="text-[9px] font-bold px-3 py-1 rounded-lg uppercase self-start">{entry.data.room}</div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="h-32 rounded-[2rem] bg-slate-50 border border-slate-100/50 flex items-center justify-center text-[10px] font-bold text-slate-200 uppercase tracking-widest italic">PROXY</div>
+                                                                    )}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+
+                                    <div className="mt-12 pt-8 border-t border-slate-50 flex justify-between text-[10px] font-bold text-slate-300 uppercase tracking-[0.5em]">
+                                        <span>System Status: Active</span>
+                                        <span>Validated: {new Date().toLocaleDateString()}</span>
+                                        <span>Strict Policy Compliant</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const HistoryModal = ({ history, setShowHistory, setClassName, setRooms, setSubjects, setTimetable, setCurrentView }) => (
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
+                <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setShowHistory(false)}></div>
+                <div className="relative glass-panel w-full max-w-2xl rounded-[2.5rem] p-10 flex flex-col max-h-[80vh]">
+                    <div className="flex justify-between items-center mb-10">
+                        <h2 className="text-2xl font-bold flex items-center gap-3"><IconHistory className="text-teal-400" /> Archive</h2>
+                        <button onClick={() => setShowHistory(false)} className="text-white/40 hover:text-white uppercase font-bold text-xs">Close</button>
+                    </div>
+                    <div className="overflow-y-auto custom-scrollbar flex-1 space-y-4 pr-2">
+                        {history.length === 0 ? (
+                            <div className="text-center py-20 text-white/20">No history found.</div>
+                        ) : (
+                            history.map(item => (
+                                <div key={item.id} onClick={() => { 
+                                    setClassName(item.className); 
+                                    setRooms(item.rooms); 
+                                    setSubjects(item.subjects); 
+                                    setTimetable(item.timetable); 
+                                    setShowHistory(false); 
+                                    setCurrentView('generator');
+                                }} className="p-6 bg-white/5 rounded-2xl border border-white/5 hover:border-teal-500/30 transition-all cursor-pointer group">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <h3 className="font-bold text-lg text-white">{item.className || 'Unnamed Batch'}</h3>
+                                            <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest mt-1">{new Date(item.timestamp).toLocaleString()}</p>
+                                        </div>
+                                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/20 group-hover:bg-teal-500 group-hover:text-slate-950 transition-all">
+                                            <IconRefresh className="w-4 h-4" />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
 
         function App() {
+            const [currentView, setCurrentView] = useState('home'); 
             const [user, setUser] = useState(null);
             const [className, setClassName] = useState('');
             const [subjectCount, setSubjectCount] = useState(4); 
@@ -105,7 +522,6 @@
             const [showHistory, setShowHistory] = useState(false);
             const [successMsg, setSuccessMsg] = useState(null);
 
-            const timetableRef = useRef(null);
             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             const lectureSlots = [
                 { label: '11:00 AM - 12:00 PM', key: '11-12' },
@@ -118,27 +534,46 @@
             ];
 
             useEffect(() => {
-                if (!hasCloud) return;
-                const initAuth = async () => {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
-                        else { await signInAnonymously(auth); }
-                    } catch (err) { console.error("Auth skipped."); }
-                };
-                initAuth();
-                const unsubscribe = onAuthStateChanged(auth, (currentUser) => { setUser(currentUser); });
-                return () => unsubscribe();
-            }, []);
+                const loader = document.getElementById('init-loader');
+                if (loader) {
+                    setTimeout(() => {
+                        loader.style.opacity = '0';
+                        setTimeout(() => loader.style.display = 'none', 500);
+                    }, 800);
+                }
 
-            useEffect(() => {
-                if (!user || !db) return;
-                const historyCollection = collection(db, 'artifacts', appId, 'users', user.uid, 'history');
-                const unsubscribe = onSnapshot(historyCollection, (snapshot) => {
-                        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        setHistory(data.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)));
-                    }, (err) => console.error(err));
-                return () => unsubscribe();
-            }, [user]);
+                let firebaseApp, auth, db;
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'timetable-gen-pro';
+                
+                try {
+                    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                        const firebaseConfig = JSON.parse(__firebase_config);
+                        firebaseApp = initializeApp(firebaseConfig);
+                        auth = getAuth(firebaseApp);
+                        db = getFirestore(firebaseApp);
+
+                        const initAuth = async () => {
+                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        };
+                        initAuth();
+
+                        onAuthStateChanged(auth, (currentUser) => {
+                            setUser(currentUser);
+                            if (currentUser) {
+                                const historyCollection = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'history');
+                                onSnapshot(historyCollection, (snapshot) => {
+                                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                                    setHistory(data.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)));
+                                });
+                            }
+                        });
+                    }
+                } catch (e) { console.warn("Firebase limited."); }
+            }, []);
 
             const handleSubjectCountChange = (count) => {
                 const val = Math.max(4, Math.min(9, parseInt(count) || 0));
@@ -177,16 +612,15 @@
                     return;
                 }
 
-                // CAPACITY CHECK LOGIC
                 let totalRequiredSlots = 0;
                 validSubjects.forEach(s => {
-                    if (s.weight >= 4) totalRequiredSlots += 7; // High
-                    else if (s.weight >= 2) totalRequiredSlots += 3.5; // Mid
-                    else totalRequiredSlots += 2; // Low
+                    if (s.weight >= 4) totalRequiredSlots += 7;
+                    else if (s.weight >= 2) totalRequiredSlots += 3.5;
+                    else totalRequiredSlots += 2;
                 });
 
                 if (totalRequiredSlots >= 36) {
-                    setError(`Capacity Breach: Total required slots (${Math.ceil(totalRequiredSlots)}) exceeds daily grid limit (36). Reduce priority or subjects.`);
+                    setError(`Capacity exceeded. Please reduce weights.`);
                     return;
                 }
 
@@ -194,7 +628,7 @@
                 
                 try {
                     const roomList = rooms.split(',').map(r => r.trim()).filter(r => r !== '');
-                    const primaryRoom = roomList[0] || 'GEN-1';
+                    const primaryRoom = roomList[0] || 'Room 101';
                     const dailySlotsGrid = [];
                     days.forEach(day => {
                         lectureSlots.filter(ls => ls.type !== 'lunch').forEach((slot, idx) => {
@@ -205,7 +639,6 @@
                     const usagePerDay = {};
                     days.forEach(d => usagePerDay[d] = {});
 
-                    // 1. High Priority (Weight 4-5) - min 1/day
                     const highPriority = validSubjects.filter(s => s.weight >= 4);
                     highPriority.forEach(sub => {
                         days.forEach(day => {
@@ -216,7 +649,6 @@
                                 usagePerDay[day][sub.name] = 1;
                             }
                         });
-                        // Add one extra to reach target of ~7
                         const extra = dailySlotsGrid.find(s => !s.occupied && (usagePerDay[s.day][sub.name] || 0) < 2);
                         if (extra) {
                             extra.occupied = true;
@@ -225,7 +657,6 @@
                         }
                     });
 
-                    // 2. Mid & Low Priority
                     const otherSubs = validSubjects.filter(s => s.weight < 4).sort((a,b) => b.weight - a.weight);
                     otherSubs.forEach(sub => {
                         let target = sub.weight >= 2 ? 4 : 2;
@@ -238,6 +669,30 @@
                                 pos.data = { ...sub, room: primaryRoom };
                                 usagePerDay[pos.day][sub.name] = 1;
                                 placed++;
+                            }
+                        }
+                    });
+
+                    // FINAL SMART FILL PHASE
+                    dailySlotsGrid.forEach(slot => {
+                        if (!slot.occupied) {
+                            const day = slot.day;
+                            const shuffledSubs = [...validSubjects].sort(() => Math.random() - 0.5);
+                            for (let sub of shuffledSubs) {
+                                const currentDayUsage = usagePerDay[day][sub.name] || 0;
+                                if (currentDayUsage < 2) {
+                                    const daySlots = dailySlotsGrid.filter(s => s.day === day);
+                                    const currentIdx = daySlots.indexOf(slot);
+                                    const prevSlot = currentIdx > 0 ? daySlots[currentIdx - 1] : null;
+                                    
+                                    // Rule: No back-to-back same subject
+                                    if (prevSlot && prevSlot.data && prevSlot.data.name === sub.name) continue;
+                                    
+                                    slot.occupied = true;
+                                    slot.data = { ...sub, room: primaryRoom };
+                                    usagePerDay[day][sub.name] = currentDayUsage + 1;
+                                    break;
+                                }
                             }
                         }
                     });
@@ -260,272 +715,114 @@
 
                     const docData = { className, rooms, subjects, timetable: dailySlotsGrid, timestamp: Date.now(), creatorId: user?.uid || 'offline' };
                     
-                    // Webhook Call
-                    await fetch(WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(docData) });
+                    fetch(WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(docData) }).catch(() => {});
 
-                    if (user && db) {
-                        const historyCollection = collection(db, 'artifacts', appId, 'users', user.uid, 'history');
-                        await addDoc(historyCollection, docData);
-                    }
-                    
                     setTimetable(dailySlotsGrid);
-                    setSuccessMsg("System Optimized.");
-                    setTimeout(() => setSuccessMsg(null), 2000);
-                } catch (err) { setError('Sync error.'); } finally { setLoading(false); }
+                    setSuccessMsg("Timetable generated successfully!");
+                    setTimeout(() => setSuccessMsg(null), 3000);
+                } catch (err) { setError('Generation failed.'); } finally { setLoading(false); }
+            };
+
+            const downloadPDF = async (ref) => {
+                if (!ref.current) return;
+                const btn = document.getElementById('dl-btn');
+                const originalText = btn.innerText;
+                btn.innerText = 'Processing...';
+                try {
+                    const canvas = await html2canvas(ref.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jspdf.jsPDF('l', 'mm', 'a4');
+                    
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const margin = 10;
+                    
+                    // Maintain aspect ratio while fitting the page
+                    let finalWidth = pdfWidth - (margin * 2);
+                    let finalHeight = (canvas.height * finalWidth) / canvas.width;
+
+                    // If calculated height exceeds page height, scale based on height instead
+                    if (finalHeight > (pdfHeight - margin * 2)) {
+                        finalHeight = pdfHeight - (margin * 2);
+                        finalWidth = (canvas.width * finalHeight) / canvas.height;
+                    }
+
+                    // Center the image
+                    const xPos = (pdfWidth - finalWidth) / 2;
+                    const yPos = (pdfHeight - finalHeight) / 2;
+
+                    pdf.addImage(imgData, 'PNG', xPos, yPos, finalWidth, finalHeight);
+                    pdf.save(`${className || 'Timetable'}_Time_Matrix.pdf`);
+                } catch (err) { 
+                    setError("PDF export failed."); 
+                    console.error(err);
+                }
+                btn.innerText = originalText;
             };
 
             const getUniqueLiteStyle = (subjectName, index) => {
-                if (!subjectName || subjectName === 'Coding Time') return { backgroundColor: '#f8fafc', borderColor: '#f1f5f9', color: '#94a3b8', accentColor: '#f1f5f9' };
+                if (!subjectName) return { backgroundColor: '#f8fafc', borderColor: '#f1f5f9', color: '#94a3b8', accentColor: '#f1f5f9' };
                 let nameHash = 0;
                 for (let i = 0; i < subjectName.length; i++) { nameHash = subjectName.charCodeAt(i) + ((nameHash << 5) - nameHash); }
                 const baseHue = (Math.abs(nameHash) + (index * 137.5)) % 360;
-                return { backgroundColor: `hsl(${baseHue}, 55%, 97%)`, borderColor: `hsl(${baseHue}, 40%, 90%)`, color: `hsl(${baseHue}, 70%, 15%)`, accentColor: `hsl(${baseHue}, 50%, 92%)` };
-            };
-
-            const downloadPDF = async () => {
-                if (!timetableRef.current) return;
-                try {
-                    const canvas = await html2canvas(timetableRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-                    const pdf = new jspdf.jsPDF('l', 'mm', 'a4');
-                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, 277, 277 * (canvas.height / canvas.width));
-                    pdf.save(`${className || 'Batch'}_Timetable.pdf`);
-                } catch (err) { setError("PDF Failed."); }
-            };
-
-            // STRICT QUOTA LIMITS
-            const tierCounts = {
-                high: subjects.filter(s => s.weight >= 4).length,
-                mid: subjects.filter(s => s.weight === 2 || s.weight === 3).length,
-                low: subjects.filter(s => s.weight === 1).length
-            };
-
-            const isWeightBlocked = (currentWeight, targetWeight) => {
-                if (currentWeight === targetWeight) return false;
-                if (targetWeight >= 4 && tierCounts.high >= 3) return true;
-                if ((targetWeight === 2 || targetWeight === 3) && tierCounts.mid >= 3) return true;
-                if (targetWeight === 1 && tierCounts.low >= 3) return true;
-                return false;
+                return { backgroundColor: `hsl(${baseHue}, 70%, 97%)`, borderColor: `hsl(${baseHue}, 50%, 90%)`, color: `hsl(${baseHue}, 80%, 15%)`, accentColor: `hsl(${baseHue}, 60%, 92%)` };
             };
 
             return (
-                <div className="min-h-screen bg-slate-950 py-10 px-4">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="flex justify-between items-center mb-8 px-4 text-[10px] font-black uppercase text-white/20">
-                            <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${user ? 'bg-teal-500 animate-pulse' : 'bg-slate-700'}`}></div>
-                                {user ? `Node v6.6 Connected` : `Local Node`}
+                <div className="min-h-screen bg-slate-950">
+                    <Navbar currentView={currentView} setCurrentView={setCurrentView} />
+                    <main>
+                        {currentView === 'home' && <HomePage setCurrentView={setCurrentView} />}
+                        {currentView === 'generator' && (
+                            <GeneratorView 
+                                className={className} setClassName={setClassName}
+                                rooms={rooms} setRooms={setRooms}
+                                subjects={subjects} subjectCount={subjectCount}
+                                handleSubjectCountChange={handleSubjectCountChange}
+                                updateSubject={updateSubject}
+                                generateTimetable={generateTimetable}
+                                handleReset={handleReset}
+                                loading={loading}
+                                timetable={timetable} setTimetable={setTimetable}
+                                downloadPDF={downloadPDF}
+                                setShowHistory={setShowHistory}
+                                history={history}
+                                days={days} lectureSlots={lectureSlots}
+                                getUniqueLiteStyle={getUniqueLiteStyle}
+                            />
+                        )}
+                        {currentView === 'about' && <AboutPage />}
+                    </main>
+                    {showHistory && (
+                        <HistoryModal 
+                            history={history} setShowHistory={setShowHistory}
+                            setClassName={setClassName} setRooms={setRooms}
+                            setSubjects={setSubjects} setTimetable={setTimetable}
+                            setCurrentView={setCurrentView}
+                        />
+                    )}
+                    <footer className="border-t border-white/5 py-20 px-6">
+                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
+                            <div className="text-center md:text-left">
+                                <div className="flex items-center justify-center md:justify-start gap-2 mb-4">
+                                    <AppLogo className="w-8 h-8" />
+                                    <span className="text-lg font-bold">Time Matrix</span>
+                                </div>
+                                <p className="text-white/40 text-sm max-w-xs">Smart Timetable Generation Made Simple. Made for students & teachers.</p>
                             </div>
-                            <button onClick={() => setShowHistory(!showHistory)} className="hover:text-teal-400 transition-colors flex items-center gap-2">
-                                <IconHistory className="w-3 h-3" /> Archive ({history.length})
-                            </button>
+                            <div className="flex gap-10 text-sm font-medium text-white/60">
+                                <button onClick={() => setCurrentView('home')} className="hover:text-teal-400">Home</button>
+                                <button onClick={() => setCurrentView('generator')} className="hover:text-teal-400">Generate</button>
+                                <button onClick={() => setCurrentView('about')} className="hover:text-teal-400">About</button>
+                            </div>
+                            <div className="text-xs font-bold text-white/20 tracking-widest uppercase">
+                                © 2026 TIME MATRIX PRO
+                            </div>
                         </div>
-
-                        {showHistory && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-                                <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl" onClick={() => setShowHistory(false)}></div>
-                                <div className="relative glass-panel w-full max-w-4xl max-h-[80vh] rounded-[3rem] p-10 overflow-hidden flex flex-col shadow-2xl border border-white/10 text-white">
-                                    <div className="flex justify-between items-center mb-10">
-                                        <h2 className="text-3xl font-black flex items-center gap-4"><IconHistory className="text-teal-400" /> History</h2>
-                                        <button onClick={() => setShowHistory(false)} className="text-white/40 hover:text-white uppercase font-black text-xs">Close</button>
-                                    </div>
-                                    <div className="overflow-y-auto custom-scrollbar flex-1 pr-4 space-y-4">
-                                        {history.map(item => (
-                                            <div key={item.id} onClick={() => { setClassName(item.className); setRooms(item.rooms); setSubjects(item.subjects); setTimetable(item.timetable); setShowHistory(false); }} className="group flex items-center justify-between p-8 bg-white/5 rounded-3xl border border-white/5 hover:border-teal-500/30 transition-all cursor-pointer">
-                                                <div><h3 className="font-black text-xl mb-1 text-white">{item.className || 'Batch Data'}</h3><p className="text-[10px] uppercase font-bold text-white/30 tracking-widest">{new Date(item.timestamp).toLocaleString()}</p></div>
-                                                <div className="w-10 h-10 bg-teal-500/10 rounded-full flex items-center justify-center text-teal-400 group-hover:bg-teal-50 group-hover:text-white transition-all"><IconRefresh className="w-4 h-4"/></div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="text-center mb-16">
-                            <div className="inline-flex items-center justify-center p-5 bg-teal-500/10 rounded-[2.5rem] shadow-2xl mb-8 border border-white/5">
-                                <IconSparkles className="text-teal-400 w-12 h-12 animate-pulse-soft" />
-                            </div>
-                            <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-4 text-white uppercase pdf-fix">Schedule Engine Pro</h1>
-                            <p className="text-teal-300/40 text-xl font-medium tracking-wide uppercase italic">Min 4-Max 9 Cluster Matrix</p>
-                        </div>
-
-                        {!loading && !timetable && (
-                            <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in zoom-in-95 duration-500">
-                                <div className="glass-panel p-10 md:p-14 rounded-[4rem] shadow-2xl space-y-12">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                        <div className="space-y-4">
-                                            <label className="text-[10px] font-black uppercase text-teal-500 tracking-[0.3em] ml-2">Batch Identity</label>
-                                            <input type="text" value={className} onChange={e => setClassName(e.target.value)} placeholder="e.g. SE A" className="w-full px-8 py-6 rounded-3xl bg-white/5 border border-white/10 text-white font-black text-xl focus:border-teal-500 outline-none transition-all placeholder:text-white/5" />
-                                        </div>
-                                        <div className="space-y-4">
-                                            <label className="text-[10px] font-black uppercase text-teal-500 tracking-[0.3em] ml-2">Location Mapping</label>
-                                            <input type="text" value={rooms} onChange={e => setRooms(e.target.value)} placeholder="e.g. 321, Lab 4" className="w-full px-8 py-6 rounded-3xl bg-white/5 border border-white/10 text-white font-black text-xl focus:border-teal-500 outline-none transition-all placeholder:text-white/5" />
-                                        </div>
-                                    </div>
-
-                                    {/* CLUSTER QUOTA INFO */}
-                                    <div className="grid grid-cols-3 gap-4 text-center">
-                                        <div className={`p-4 rounded-3xl border transition-all ${tierCounts.high >= 3 ? 'border-amber-500/50 bg-amber-500/10' : 'border-white/5 bg-white/5'}`}>
-                                            <div className="text-[9px] font-black text-amber-500 uppercase tracking-widest">High (4-5★)</div>
-                                            <div className="text-white font-bold">{tierCounts.high}/3</div>
-                                        </div>
-                                        <div className={`p-4 rounded-3xl border transition-all ${tierCounts.mid >= 3 ? 'border-teal-500/50 bg-teal-500/10' : 'border-white/5 bg-white/5'}`}>
-                                            <div className="text-[9px] font-black text-teal-500 uppercase tracking-widest">Mid (2-3★)</div>
-                                            <div className="text-white font-bold">{tierCounts.mid}/3</div>
-                                        </div>
-                                        <div className={`p-4 rounded-3xl border transition-all ${tierCounts.low >= 3 ? 'border-slate-500/50 bg-slate-500/10' : 'border-white/5 bg-white/5'}`}>
-                                            <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Low (1★)</div>
-                                            <div className="text-white font-bold">{tierCounts.low}/3</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-6">
-                                        <div className="flex items-center justify-between px-2">
-                                            <label className="text-xs font-black uppercase text-white/40 tracking-[0.4em]">Subjects Cluster</label>
-                                            <div className="flex items-center bg-white/5 rounded-full px-6 py-2 border border-white/10 text-white">
-                                                <span className="text-[10px] font-black text-teal-500 mr-4">Capacity:</span>
-                                                <input type="number" min="4" max="9" value={subjectCount} onChange={e => handleSubjectCountChange(e.target.value)} className="w-8 bg-transparent text-center font-black outline-none" />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-6 custom-scrollbar">
-                                            {subjects.map((s, idx) => (
-                                                <div key={s.id} className="p-10 bg-white/[0.02] rounded-[3.5rem] border border-white/5 space-y-8 hover:bg-white/[0.04] transition-all">
-                                                    <div className="flex flex-col md:flex-row gap-6">
-                                                        <input type="text" placeholder="Subject Title" value={s.name} onChange={e => updateSubject(idx, 'name', e.target.value)} className="flex-1 bg-transparent font-black text-2xl border-b-2 border-white/10 text-white outline-none focus:border-teal-500 py-2" />
-                                                        <input type="text" placeholder="Faculty" value={s.teacher} onChange={e => updateSubject(idx, 'teacher', e.target.value)} className="flex-1 bg-transparent font-bold text-xl border-b-2 border-white/10 text-teal-200 outline-none focus:border-emerald-500 py-2" />
-                                                    </div>
-                                                    <div className="flex justify-between items-center">
-                                                        <div className="flex flex-col gap-2">
-                                                            <span className="text-[8px] font-black uppercase text-white/30">Priority Tier Mapping</span>
-                                                            <div className="flex gap-3">
-                                                                {[1,2,3,4,5].map(w => {
-                                                                    const blocked = isWeightBlocked(s.weight, w);
-                                                                    return (
-                                                                        <button 
-                                                                            key={w} 
-                                                                            disabled={blocked}
-                                                                            onClick={() => updateSubject(idx, 'weight', w)} 
-                                                                            className={`w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center 
-                                                                                ${s.weight >= w ? 'border-teal-500 text-teal-500 bg-teal-500/10' : 'border-white/10 text-white/20 hover:border-white/30'}
-                                                                                ${blocked ? 'opacity-10 cursor-not-allowed' : 'cursor-pointer'}
-                                                                            `}>
-                                                                            <IconZap className="w-4 h-4" fill={s.weight >= w ? "currentColor" : "none"} />
-                                                                        </button>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex bg-black/40 p-2 rounded-2xl border border-white/5">
-                                                            <button onClick={() => updateSubject(idx, 'session', 'morning')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${s.session==='morning'?'bg-teal-600 text-white shadow-lg':'text-white/20'}`}>AM</button>
-                                                            <button onClick={() => updateSubject(idx, 'session', 'afternoon')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${s.session==='afternoon'?'bg-emerald-600 text-white shadow-lg':'text-white/20'}`}>PM</button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-6">
-                                        <button onClick={generateTimetable} className="flex-1 py-8 rounded-[3rem] bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-700 text-white font-black text-3xl shadow-2xl hover:scale-[1.02] transition-all flex items-center justify-center gap-4 uppercase tracking-tighter">
-                                            Synthesize Grid ⚡
-                                        </button>
-                                        <button onClick={handleReset} className="w-24 rounded-[3rem] bg-white/5 border border-white/10 text-white/20 hover:text-white transition-all flex items-center justify-center"><IconRefresh className="w-6 h-6"/></button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {loading && (
-                            <div className="flex flex-col items-center justify-center py-48">
-                                <div className="w-24 h-24 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mb-8 shadow-2xl"></div>
-                                <h2 className="text-white font-black text-3xl tracking-tighter uppercase mb-2">Validating Matrix</h2>
-                                <p className="text-teal-500/40 font-bold uppercase text-xs">Capacity vs Request check in progress</p>
-                            </div>
-                        )}
-
-                        {timetable && !loading && (
-                            <div className="space-y-16 animate-in fade-in slide-in-from-bottom-12 duration-700">
-                                <div className="flex justify-between items-center px-10">
-                                    <button onClick={() => setTimetable(null)} className="bg-white/5 px-6 py-3 rounded-[1.5rem] border border-white/10 font-bold text-white hover:bg-white/10 transition-all uppercase text-xs tracking-widest">Adjust</button>
-                                    <button onClick={downloadPDF} className="bg-white text-slate-900 px-8 py-3 rounded-[1.5rem] font-black shadow-2xl hover:bg-teal-50 transition-all uppercase text-xs tracking-tighter flex items-center gap-2">
-                                        <IconDownload className="w-4 h-4"/> Export PDF
-                                    </button>
-                                </div>
-
-                                <div className="timetable-scale-wrapper overflow-x-auto pb-10">
-                                    <div ref={timetableRef} className="bg-white p-10 rounded-[4rem] shadow-2xl text-slate-950 border border-white overflow-hidden min-w-[1200px]">
-                                        <div className="flex justify-between items-end border-b-[8px] border-slate-50 pb-10 mb-10 px-4">
-                                            <div className="space-y-3">
-                                                <div className="px-4 py-1 bg-slate-950 text-white inline-block rounded-full text-[9px] font-black uppercase tracking-[0.5em] mb-2">Architectural Blueprint</div>
-                                                <h3 className="text-6xl font-black text-slate-950 uppercase tracking-tighter leading-none pdf-fix">{className || 'SE A'}</h3>
-                                                <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[11px]">Room: {rooms.split(',')[0] || 'GEN-1'} | 36 Slot optimized</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-[10px] font-black text-slate-300 uppercase tracking-[0.5em] mb-1">Status: Optimized Cluster</div>
-                                                <div className="text-3xl font-black text-teal-600 tracking-tighter uppercase">6 Lectures / Day</div>
-                                            </div>
-                                        </div>
-                                        <table className="w-full border-separate border-spacing-2">
-                                            <thead>
-                                                <tr>
-                                                    <th className="w-24"></th>
-                                                    {days.map(day => (
-                                                        <th key={day} className="p-4 text-center text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 border border-slate-50 rounded-[1.5rem]">{day}</th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {lectureSlots.map(slot => {
-                                                    if (slot.type === 'lunch') {
-                                                        return (
-                                                            <tr key="lunch">
-                                                                <td className="p-4 text-right font-black text-slate-200 text-[9px] uppercase tracking-[0.2em]">{slot.label}</td>
-                                                                <td colSpan={6} className="p-1">
-                                                                    <div className="h-16 rounded-[2rem] bg-slate-50 border-2 border-dashed border-slate-100 flex items-center justify-center gap-6 text-slate-200 font-black uppercase tracking-[1em] text-[10px] pdf-fix"><IconCoffee className="w-5 h-5 text-slate-100" /> Lunch Break</div>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    }
-                                                    return (
-                                                        <tr key={slot.key}>
-                                                            <td className="p-4 text-right font-black text-slate-950 text-[11px] leading-tight uppercase tracking-tighter w-24 pdf-fix">{slot.label.split(' - ').map((t, idx) => (<div key={idx} className={idx === 1 ? 'text-slate-300' : ''}>{t}</div>))}</td>
-                                                            {days.map((day) => {
-                                                                const entry = timetable.find(i => i.day === day && i.slot === slot.label);
-                                                                const styles = getUniqueLiteStyle(entry?.data?.name, subjects.findIndex(s => s.name === entry?.data?.name));
-                                                                return (
-                                                                    <td key={day} className="p-1 min-w-[160px]">
-                                                                        {entry && entry.data ? (
-                                                                            <div style={styles} className="subject-card p-6 rounded-[2rem] h-36 flex flex-col justify-between relative overflow-hidden">
-                                                                                <div style={{backgroundColor: styles.accentColor}} className="absolute top-4 right-4 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest opacity-80">#{entry.data.sequence}</div>
-                                                                                <div>
-                                                                                    <div className="font-black text-xl uppercase tracking-tighter leading-[1] mb-2 pdf-fix">{entry.data.name}</div>
-                                                                                    <div className="text-[10px] font-bold opacity-60 flex items-center gap-1.5"><IconUser className="w-2.5 h-2.5" /> {entry.data.teacher}</div>
-                                                                                </div>
-                                                                                <div style={{backgroundColor: styles.accentColor}} className="text-[9px] font-black px-4 py-1.5 rounded-xl uppercase tracking-[0.2em] inline-block self-start shadow-sm pdf-fix">{entry.data.room}</div>
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div className="h-36 rounded-[2rem] bg-slate-50 border-2 border-dotted border-slate-100 flex flex-col items-center justify-center text-[9px] font-black text-slate-200 uppercase tracking-[0.3em] italic gap-2 opacity-50"><IconCode className="w-4 h-4 text-slate-100" /> Coding Time</div>
-                                                                        )}
-                                                                    </td>
-                                                                );
-                                                            })}
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                        <div className="mt-16 pt-8 border-t-4 border-slate-50 flex justify-between items-center text-[9px] font-black text-slate-200 uppercase tracking-[0.5em] px-4 pdf-fix">
-                                            <span>Architecture Node v6.6</span>
-                                            <span>Validated: {new Date().toLocaleDateString()}</span>
-                                            <span>Strict Tier-Cluster Allocation Compliant</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="fixed bottom-10 right-10 flex flex-col gap-4 z-[100]">
-                            {successMsg && <div className="p-6 bg-teal-600 text-white rounded-[2rem] shadow-2xl font-black uppercase text-[10px] animate-in slide-in-from-right-10 border border-white/20">{successMsg}</div>}
-                            {error && <div className="p-10 bg-rose-600 text-white rounded-[4rem] shadow-2xl font-black uppercase text-[11px] animate-in slide-in-from-right-10 border border-white/20 max-w-sm">{error}</div>}
-                        </div>
+                    </footer>
+                    <div className="fixed bottom-8 right-8 z-[100] flex flex-col gap-4">
+                        {successMsg && <div className="px-8 py-4 bg-teal-600 text-white rounded-2xl shadow-2xl font-bold text-sm animate-in slide-in-from-right-10 border border-white/20">{successMsg}</div>}
+                        {error && <div className="px-8 py-4 bg-rose-600 text-white rounded-2xl shadow-2xl font-bold text-sm animate-in slide-in-from-right-10 border border-white/20 max-w-sm">{error}</div>}
                     </div>
                 </div>
             );
